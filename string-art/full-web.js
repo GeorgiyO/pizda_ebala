@@ -205,7 +205,7 @@ function getBlackestLineIndex(fromIndex) {
             sum += pixels[x][y];
         });
 
-        let pixelsCount = linesPixels[fromIndex][toIndex][0].length;
+        let pixelsCount = linesPixels[fromIndex][toIndex].length;
         sum /= pixelsCount;
 
         if (sum > blackestPower) {
@@ -284,7 +284,7 @@ function Point(x, y) {
 
 function getPixelsBetweenPoints(from, to) {
 
-    let pixels = [[], []];  // x[], y[]
+    let pixels = []; // x -> y -> x -> y -> ...
 
     let dx = Math.abs(to.x - from.x);
     let dy = Math.abs(to.y - from.y);
@@ -302,8 +302,8 @@ function getPixelsBetweenPoints(from, to) {
         dy = to.y - from.y;
         let yIncr = dy / dx;
         for (x; x <= to.x; x++) {
-            pixels[0].push(x);
-            pixels[1].push(Math.round(y));
+            pixels.push(x);
+            pixels.push(Math.round(y));
             y += yIncr;
         }
     } else {
@@ -318,8 +318,8 @@ function getPixelsBetweenPoints(from, to) {
         dy = to.y - from.y;
         let xIncr = dx / dy;
         for (y; y <= to.y; y++) {
-            pixels[0].push(Math.round(x));
-            pixels[1].push(y);
+            pixels.push(Math.round(x));
+            pixels.push(y);
             x += xIncr;
         }
     }
@@ -347,8 +347,8 @@ function forEachLinePixelsFromPoint(fromIndex, callback) {
 
 function forEachPixelBetweenPoints(fromIndex, toIndex, callback) {
     let pixels = linesPixels[fromIndex][toIndex];
-    for (let i = 0; i < pixels[0].length; i++) {
-        callback(pixels[0][i], pixels[1][i]);
+    for (let i = 0; i < pixels.length; i+=2) {
+        callback(pixels[i], pixels[i + 1]);
     }
 }
 
@@ -397,7 +397,7 @@ function log() {
             setB(v);
         };
 
-        for (let j = 0; j < linesPixels.length; j++) {
+        for (let j = 0; j < nails.length; j++) {
             forEachLinePixelsFromPoint(j, function (x, y) {
                 i = (x + y * BUFFER_SIDE) * 4;
                 setR(0);
