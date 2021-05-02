@@ -4,11 +4,13 @@ const canvas = document.getElementsByTagName("canvas")[0];
 const ctx = canvas.getContext("2d");
 const buffer = document.createElement("canvas").getContext("2d");
 
-const SMOOTHING = true;
+const SMOOTHING = false;
 const CANVAS_SIZE = 1000;
 const BUFFER_SIDE = 2000;
 const NAILS_COUNT = 288;
 const ITERATIONS_COUNT = 4000;
+const MAIN_PIXEL_MULTIPLIER = 0.3;
+const NEIGHBOUR_PIXELS_MULTIPLIER = 0.8;
 
 const SHOW_NAILS = false;
 const SHOW_LINES = false;
@@ -62,13 +64,17 @@ function createPattern() {
     let image = new Image();
     image.src = url;
     image.onload = (e) => {
-        console.time("Армения");
-        drawBuffer(image);
-        editImage();
-        imageToPixelArray();
-        patternInput.value = getPattern().join(",");
-        console.timeEnd("Армения");
+        convert(image);
     }
+}
+
+function convert(image) {
+    console.time("Армения");
+    drawBuffer(image);
+    editImage();
+    imageToPixelArray();
+    patternInput.value = getPattern().join(",");
+    console.timeEnd("Армения");
 }
 
 // DRAW
@@ -102,15 +108,31 @@ function editImage() {
     let data = imageData.data;
     let i;
 
-    const r = function () {return data[i];};
-    const g = function () {return data[i + 1];};
-    const b = function () {return data[i + 2];};
-    const a = function () {return data[i + 3];};
+    const r = function () {
+        return data[i];
+    };
+    const g = function () {
+        return data[i + 1];
+    };
+    const b = function () {
+        return data[i + 2];
+    };
+    const a = function () {
+        return data[i + 3];
+    };
 
-    const setR = function (r) {data[i] = r;};
-    const setG = function (g) {data[i + 1] = g;};
-    const setB = function (b) {data[i + 2] = b;};
-    const setA = function (a) {data[i + 3] = a;};
+    const setR = function (r) {
+        data[i] = r;
+    };
+    const setG = function (g) {
+        data[i + 1] = g;
+    };
+    const setB = function (b) {
+        data[i + 2] = b;
+    };
+    const setA = function (a) {
+        data[i + 3] = a;
+    };
 
     const setRGB = function (v) {
         setR(v);
@@ -160,12 +182,12 @@ function getPattern() {
     for (let i = 0; i < ITERATIONS_COUNT; i++) {
         let next = getBlackestLineIndex(last());
         forEachPixelBetweenPoints(last(), next, function (x, y) {
-            pixels[x][y] *= 0.2;
+            pixels[x][y] *= MAIN_PIXEL_MULTIPLIER;
 
-            pixels[x + 1][y + 1] *= 0.7;
-            pixels[x + 1][y - 1] *= 0.7;
-            pixels[x - 1][y + 1] *= 0.7;
-            pixels[x - 1][y - 1] *= 0.7;
+            pixels[x + 1][y + 1] *= NEIGHBOUR_PIXELS_MULTIPLIER;
+            pixels[x + 1][y - 1] *= NEIGHBOUR_PIXELS_MULTIPLIER;
+            pixels[x - 1][y + 1] *= NEIGHBOUR_PIXELS_MULTIPLIER;
+            pixels[x - 1][y - 1] *= NEIGHBOUR_PIXELS_MULTIPLIER;
 
         });
         nailsIndexes.push(next);
@@ -343,15 +365,31 @@ function log() {
         let data = img.data;
         let i;
 
-        const r = function () {return data[i];};
-        const g = function () {return data[i + 1];};
-        const b = function () {return data[i + 2];};
-        const a = function () {return data[i + 3];};
+        const r = function () {
+            return data[i];
+        };
+        const g = function () {
+            return data[i + 1];
+        };
+        const b = function () {
+            return data[i + 2];
+        };
+        const a = function () {
+            return data[i + 3];
+        };
 
-        const setR = function (r) {data[i] = r;};
-        const setG = function (g) {data[i + 1] = g;};
-        const setB = function (b) {data[i + 2] = b;};
-        const setA = function (a) {data[i + 3] = a;};
+        const setR = function (r) {
+            data[i] = r;
+        };
+        const setG = function (g) {
+            data[i + 1] = g;
+        };
+        const setB = function (b) {
+            data[i + 2] = b;
+        };
+        const setA = function (a) {
+            data[i + 3] = a;
+        };
 
         const setRGB = function (v) {
             setR(v);
@@ -384,15 +422,31 @@ function init() {
     let data = img.data;
     let i;
 
-    const r = function () {return data[i];};
-    const g = function () {return data[i + 1];};
-    const b = function () {return data[i + 2];};
-    const a = function () {return data[i + 3];};
+    const r = function () {
+        return data[i];
+    };
+    const g = function () {
+        return data[i + 1];
+    };
+    const b = function () {
+        return data[i + 2];
+    };
+    const a = function () {
+        return data[i + 3];
+    };
 
-    const setR = function (r) {data[i] = r;};
-    const setG = function (g) {data[i + 1] = g;};
-    const setB = function (b) {data[i + 2] = b;};
-    const setA = function (a) {data[i + 3] = a;};
+    const setR = function (r) {
+        data[i] = r;
+    };
+    const setG = function (g) {
+        data[i + 1] = g;
+    };
+    const setB = function (b) {
+        data[i + 2] = b;
+    };
+    const setA = function (a) {
+        data[i + 3] = a;
+    };
 
     const setRGB = function (v) {
         setR(v);
@@ -409,4 +463,17 @@ function init() {
     }
 
     buffer.putImageData(img, 0, 0);
+}
+
+function download(filename, text) {
+    let element = document.createElement('a');
+    element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(text));
+    element.setAttribute('download', filename);
+
+    element.style.display = 'none';
+    document.body.appendChild(element);
+
+    element.click();
+
+    document.body.removeChild(element);
 }
