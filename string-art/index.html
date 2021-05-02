@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <script defer src="main.js"></script>
+    <style>
+        canvas {
+            border: 5px solid #ddd;
+        }
+    </style>
+</head>
+<body>
+<p>Изображение:</p>
+<div style="display: flex; flex-direction: row">
+    <input type="file" accept="image/png, image/jpeg" id="image-input">
+    <button onclick="createPattern()">создать паттерн</button>
+    <button onclick="draw()">нарисовать</button>
+</div>
+<canvas></canvas><br>
+<textarea id="pattern-input"></textarea>
+</body>
+</html>
