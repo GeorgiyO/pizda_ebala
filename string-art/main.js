@@ -4,14 +4,14 @@ const canvas = document.getElementsByTagName("canvas")[0];
 const ctx = canvas.getContext("2d");
 const buffer = document.createElement("canvas").getContext("2d");
 
-const SMOOTHING = false;
+const SMOOTHING = true;
 const CANVAS_SIZE = 1000;
 const BUFFER_SIDE = 2000;
 const NAILS_COUNT = 288;
-const ITERATIONS_COUNT = 3;
+const ITERATIONS_COUNT = 4000;
 
-const SHOW_NAILS = true;
-const SHOW_LINES = true;
+const SHOW_NAILS = false;
+const SHOW_LINES = false;
 
 canvas.width = canvas.height = CANVAS_SIZE;
 buffer.canvas.width = buffer.canvas.height = BUFFER_SIDE;
@@ -23,10 +23,13 @@ console.time("Афганистан");
 const pixels = initPixelsArray();
 const nails = initNailsArray();
 const linesPixels = initLinesPixelsArray();
-const nailsDrawOrder = [0];
 console.timeEnd("Афганистан");
 
+console.log(pixels);
 console.log(linesPixels);
+
+init();
+log();
 
 function draw() {
 
@@ -37,9 +40,10 @@ function draw() {
     }
 
     buffer.fillStyle = "white";
-    buffer.fillRect(0, 0, canvas.width, canvas.height);
+    buffer.fillRect(0, 0, BUFFER_SIDE, BUFFER_SIDE);
 
     buffer.strokeStyle = "black";
+    buffer.lineWidth = 0.7;
     buffer.beginPath();
     buffer.moveTo(get(0).x, get(0).y);
     for (let i = 1; i < pattern.length - 1; i++) {
@@ -49,7 +53,7 @@ function draw() {
     buffer.closePath();
     buffer.stroke();
 
-    drawCanvas();
+    drawCanvas(buffer);
 }
 
 function createPattern() {
@@ -58,21 +62,21 @@ function createPattern() {
     let image = new Image();
     image.src = url;
     image.onload = (e) => {
+        console.time("Армения");
         drawBuffer(image);
         editImage();
         imageToPixelArray();
-        console.time();
         patternInput.value = getPattern().join(",");
-        console.timeEnd();
+        console.timeEnd("Армения");
     }
 }
 
 // DRAW
 
-function drawCanvas() {
+function drawCanvas(buffer) {
     ctx.drawImage(
         buffer.canvas,
-        0, 0, BUFFER_SIDE, BUFFER_SIDE,
+        0, 0, buffer.canvas.width, buffer.canvas.height,
         0, 0, canvas.width, canvas.height,
     )
 }
@@ -98,17 +102,17 @@ function editImage() {
     let data = imageData.data;
     let i;
 
-    const r = () => data[i];
-    const g = () => data[i + 1];
-    const b = () => data[i + 2];
-    const a = () => data[i + 3];
+    const r = function () {return data[i];};
+    const g = function () {return data[i + 1];};
+    const b = function () {return data[i + 2];};
+    const a = function () {return data[i + 3];};
 
-    const setR = (r) => data[i] = r;
-    const setG = (g) => data[i + 1] = g;
-    const setB = (b) => data[i + 2] = b;
-    const setA = (a) => data[i + 3] = a;
+    const setR = function (r) {data[i] = r;};
+    const setG = function (g) {data[i + 1] = g;};
+    const setB = function (b) {data[i + 2] = b;};
+    const setA = function (a) {data[i + 3] = a;};
 
-    const setRGB = (v) => {
+    const setRGB = function (v) {
         setR(v);
         setG(v);
         setB(v);
@@ -117,10 +121,14 @@ function editImage() {
     for (let x = 0; x < BUFFER_SIDE; x++) {
         for (let y = 0; y < BUFFER_SIDE; y++) {
             i = (x + y * BUFFER_SIDE) * 4;
-            let avg = (r() + g() + b()) / 3;
-            let pixelColor = 255 - a() + avg;
-            setRGB(255 - pixelColor);
+
             setA(255);
+
+            if (Math.hypot(BUFFER_SIDE / 2 - x, BUFFER_SIDE / 2 - y) > 1000) {
+                setRGB(0)
+            } else {
+                setRGB(a() - (r() + g() + b()) / 3);
+            }
         }
     }
 
@@ -150,9 +158,15 @@ function getPattern() {
     }
 
     for (let i = 0; i < ITERATIONS_COUNT; i++) {
-        let next = getBlackestLineNail(last());
-        forEachPixelBetween(nails[last()], nails[next], function (x, y) {
-            pixels[x][y] = 0;
+        let next = getBlackestLineIndex(last());
+        forEachPixelBetweenPoints(last(), next, function (x, y) {
+            pixels[x][y] *= 0.2;
+
+            pixels[x + 1][y + 1] *= 0.7;
+            pixels[x + 1][y - 1] *= 0.7;
+            pixels[x - 1][y + 1] *= 0.7;
+            pixels[x - 1][y - 1] *= 0.7;
+
         });
         nailsIndexes.push(next);
     }
@@ -160,45 +174,36 @@ function getPattern() {
     return nailsIndexes;
 }
 
-function getBlackestLineNail(nailId) {
-    let maxPow = Number.MIN_SAFE_INTEGER;
-    let maxPowNailId = 0;
-    let currPow;
-    let i;
+function getBlackestLineIndex(fromIndex) {
+    let blackestId = 0;
+    let blackestPower = Number.MIN_SAFE_INTEGER;
+    forEachPointExcludeOne(fromIndex, function (toIndex) {
+        let sum = 0;
+        forEachPixelBetweenPoints(fromIndex, toIndex, function (x, y) {
+            sum += pixels[x][y];
+        });
 
-    const foo = function () {
-        currPow = getLinePower(nails[nailId], nails[i]);
-        if (currPow > maxPow) {
-            maxPow = currPow;
-            maxPowNailId = i;
+        let pixelsCount = linesPixels[fromIndex][toIndex][0].length;
+        sum /= pixelsCount;
+
+        if (sum > blackestPower) {
+            blackestPower = sum;
+            blackestId = toIndex;
         }
-    }
-
-    for (i = 0; i < nailId; i++) foo();
-    for (i = nailId + 1; i < nails.length; i++) foo();
-
-    return maxPowNailId;
-}
-
-function getLinePower(from, to) {
-    let sum = 0;
-    forEachPixelBetween(from, to, function (x, y) {
-        sum += pixels[x][y];
     });
-    return sum;
-}
-
-function forEachPixelBetween(from, to, callback) {
-
+    return blackestId;
 }
 
 // OTHER
 
 function initPixelsArray() {
     let arr = [];
-    for (let i = 0; i < BUFFER_SIDE; i++) {
-        arr.push(new Uint8Array(BUFFER_SIDE));
+    for (let i = 0; i <= BUFFER_SIDE; i++) {
+        arr.push(new Uint8Array(BUFFER_SIDE + 2));
+        arr[i][-1] = 0;
     }
+    arr[-1] = [];
+    arr[arr.length] = [];
     return arr;
 }
 
@@ -236,7 +241,7 @@ function initLinesPixelsArray() {
     }
 
     for (i = 0; i < nails.length; i++) {
-        for (let j = i + 1; j < nails.length / 2; j++) {
+        for (let j = i + 1; j < nails.length; j++) {
             arr[i][j] = getPixelsBetweenPoints(nails[i], nails[j]);
         }
     }
@@ -245,26 +250,6 @@ function initLinesPixelsArray() {
         for (let j = i + 1; j < nails.length; j++) {
             arr[j][i] = arr[i][j];
         }
-    }
-
-
-    if (SHOW_LINES) {
-        buffer.fillStyle = "#08f";
-        for (let row of arr) {
-            for (let cell of row) {
-                for (let pixel of cell) {
-                    buffer.fillRect(pixel.x, pixel.y, 1, 1);
-                }
-            }
-        }
-        drawCanvas();
-    }
-    if (SHOW_NAILS) {
-        buffer.fillStyle = "#f00";
-        for (let nail of nails) {
-            buffer.fillRect(nail.x - 1, nail.y - 1, 3, 3);
-        }
-        drawCanvas();
     }
 
     return arr;
@@ -277,7 +262,7 @@ function Point(x, y) {
 
 function getPixelsBetweenPoints(from, to) {
 
-    let pixels = [];
+    let pixels = [[], []];  // x[], y[]
 
     let dx = Math.abs(to.x - from.x);
     let dy = Math.abs(to.y - from.y);
@@ -295,7 +280,8 @@ function getPixelsBetweenPoints(from, to) {
         dy = to.y - from.y;
         let yIncr = dy / dx;
         for (x; x <= to.x; x++) {
-            pixels.push(new Point(x, Math.round(y)));
+            pixels[0].push(x);
+            pixels[1].push(Math.round(y));
             y += yIncr;
         }
     } else {
@@ -310,13 +296,38 @@ function getPixelsBetweenPoints(from, to) {
         dy = to.y - from.y;
         let xIncr = dx / dy;
         for (y; y <= to.y; y++) {
-            pixels.push(new Point(Math.round(x), y));
+            pixels[0].push(Math.round(x));
+            pixels[1].push(y);
             x += xIncr;
         }
     }
 
-
     return pixels;
+}
+
+function forEachPointExcludeOne(fromIndex, callback) {
+    for (let i = 0; i < fromIndex; i++) {
+        callback(i);
+    }
+    for (let i = fromIndex + 1; i < linesPixels.length; i++) {
+        callback(i);
+    }
+}
+
+function forEachLinePixelsFromPoint(fromIndex, callback) {
+    for (let i = 0; i < fromIndex; i++) {
+        forEachPixelBetweenPoints(fromIndex, i, callback);
+    }
+    for (let i = fromIndex + 1; i < linesPixels.length; i++) {
+        forEachPixelBetweenPoints(fromIndex, i, callback);
+    }
+}
+
+function forEachPixelBetweenPoints(fromIndex, toIndex, callback) {
+    let pixels = linesPixels[fromIndex][toIndex];
+    for (let i = 0; i < pixels[0].length; i++) {
+        callback(pixels[0][i], pixels[1][i]);
+    }
 }
 
 function polarToRect(r, a) {
@@ -324,4 +335,78 @@ function polarToRect(r, a) {
         x: r * Math.cos(a),
         y: r * Math.sin(a),
     }
+}
+
+function log() {
+    if (SHOW_LINES) {
+        let img = buffer.getImageData(0, 0, BUFFER_SIDE, BUFFER_SIDE);
+        let data = img.data;
+        let i;
+
+        const r = function () {return data[i];};
+        const g = function () {return data[i + 1];};
+        const b = function () {return data[i + 2];};
+        const a = function () {return data[i + 3];};
+
+        const setR = function (r) {data[i] = r;};
+        const setG = function (g) {data[i + 1] = g;};
+        const setB = function (b) {data[i + 2] = b;};
+        const setA = function (a) {data[i + 3] = a;};
+
+        const setRGB = function (v) {
+            setR(v);
+            setG(v);
+            setB(v);
+        };
+
+        for (let j = 0; j < linesPixels.length; j++) {
+            forEachLinePixelsFromPoint(j, function (x, y) {
+                i = (x + y * BUFFER_SIDE) * 4;
+                setR(0);
+                setG(127);
+                setB(255);
+            });
+        }
+        buffer.putImageData(img, 0, 0);
+        drawCanvas(buffer);
+    }
+    if (SHOW_NAILS) {
+        buffer.fillStyle = "#f00";
+        for (let nail of nails) {
+            buffer.fillRect(nail.x - 1, nail.y - 1, 3, 3);
+        }
+        drawCanvas(buffer);
+    }
+}
+
+function init() {
+    let img = buffer.getImageData(0, 0, BUFFER_SIDE, BUFFER_SIDE);
+    let data = img.data;
+    let i;
+
+    const r = function () {return data[i];};
+    const g = function () {return data[i + 1];};
+    const b = function () {return data[i + 2];};
+    const a = function () {return data[i + 3];};
+
+    const setR = function (r) {data[i] = r;};
+    const setG = function (g) {data[i + 1] = g;};
+    const setB = function (b) {data[i + 2] = b;};
+    const setA = function (a) {data[i + 3] = a;};
+
+    const setRGB = function (v) {
+        setR(v);
+        setG(v);
+        setB(v);
+    };
+
+    for (let x = 0; x < BUFFER_SIDE; x++) {
+        for (let y = 0; y < BUFFER_SIDE; y++) {
+            i = (x + y * BUFFER_SIDE) * 4;
+            setA(255);
+            setRGB(255);
+        }
+    }
+
+    buffer.putImageData(img, 0, 0);
 }
